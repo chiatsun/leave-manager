@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>休假管理系統</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <div class="header-left">
+                <h1>休假管理系統</h1>
+                <div class="year-selector">
+                    <button id="prevYear" class="icon-btn">&lt;</button>
+                    <span id="currentYearDisplay">2026</span>
+                    <button id="nextYear" class="icon-btn">&gt;</button>
+                </div>
+            </div>
+            <div class="header-right">
+                <button id="reportBtn" class="btn btn-secondary">📊 報表統計</button>
+                <button id="settingsBtn" class="btn btn-secondary">⚙️ 系統設定</button>
+                <button id="addLeaveBtn" class="btn btn-primary">+ 新增紀錄</button>
+            </div>
+        </header>
+
+        <main>
+            <!-- Dashboard Cards -->
+            <section class="dashboard">
+                <div class="card summary-card glass-card">
+                    <div class="card-icon blue">🏖️</div>
+                    <div class="card-content">
+                        <h3>設定特休總數</h3>
+                        <p class="value" id="annualLeaveTotal">0 天</p>
+                    </div>
+                </div>
+                <div class="card summary-card glass-card">
+                    <div class="card-icon red">📉</div>
+                    <div class="card-content">
+                        <h3>已用特休</h3>
+                        <p class="value" id="annualLeaveUsed">0 天</p>
+                        <span class="sub-text" id="annualLeaveUsedHours">(0 小時)</span>
+                    </div>
+                </div>
+                <div class="card summary-card glass-card">
+                    <div class="card-icon green">✨</div>
+                    <div class="card-content">
+                        <h3>剩餘特休</h3>
+                        <p class="value" id="annualLeaveRemaining">0 天</p>
+                        <span class="sub-text" id="annualLeaveRemainingHours">(0 小時)</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="dashboard-details">
+                <div class="card list-card glass-card flex-2">
+                    <div class="card-header">
+                        <h2>休假紀錄</h2>
+                        <div class="filter-group">
+                            <select id="filterType">
+                                <option value="all">全部假別</option>
+                                <option value="特休假">特休假</option>
+                                <option value="事假">事假</option>
+                                <option value="病假">病假</option>
+                                <option value="公假">公假</option>
+                                <option value="國定假日">國定假日</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table id="recordsTable">
+                            <thead>
+                                <tr>
+                                    <th class="sortable" onclick="handleSort('date')">日期 <span id="sort-date"></span></th>
+                                    <th class="sortable" onclick="handleSort('type')">假別 <span id="sort-type"></span></th>
+                                    <th class="sortable" onclick="handleSort('hours')">時數 <span id="sort-hours"></span></th>
+                                    <th>備註</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recordsBody">
+                                <!-- Records will be injected here -->
+                            </tbody>
+                        </table>
+                        <div id="noRecordsMsg" class="empty-state" style="display: none;">
+                            尚無休假紀錄
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="side-column flex-1">
+                    <div class="card stats-card glass-card">
+                        <div class="card-header">
+                            <h2>其他假別統計</h2>
+                        </div>
+                        <div class="stats-list" id="otherStatsList">
+                            <!-- Other stats injected here -->
+                        </div>
+                    </div>
+
+                    <div class="card holiday-display-card glass-card" style="margin-top: 1.5rem;">
+                        <div class="card-header">
+                            <h2>國定假日清單</h2>
+                        </div>
+                        <div class="stats-list" id="dashboardHolidaysList">
+                            <!-- Holiday status injected here -->
+                        </div>
+                    </div>
+
+                    <div class="card holiday-display-card glass-card" style="margin-top: 1.5rem;">
+                        <div class="card-header">
+                            <h2>加班補休清單</h2>
+                        </div>
+                        <div class="stats-list" id="dashboardOvertimesList">
+                            <!-- Overtime status injected here -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Add Leave Modal -->
+    <div id="addLeaveModal" class="modal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2>新增休假紀錄</h2>
+                <span class="close-btn">&times;</span>
+            </div>
+            <form id="addLeaveForm">
+                <div class="form-group">
+                    <label for="leaveDate">日期</label>
+                    <input type="date" id="leaveDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="leaveType">假別</label>
+                    <select id="leaveType" required>
+                        <option value="特休假">特休假</option>
+                        <option value="事假">事假</option>
+                        <option value="病假">病假</option>
+                        <option value="公假">公假</option>
+                        <option value="國定假日">國定假日</option>
+                        <option value="加班補休">加班補休</option>
+                    </select>
+                </div>
+                <div class="form-group" id="holidaySelectGroup" style="display: none;">
+                    <label for="holidaySelect">選擇國定假日 (剩餘時數)</label>
+                    <select id="holidaySelect">
+                        <!-- Options injected here -->
+                    </select>
+                    <input type="hidden" id="holidayTargetDate">
+                </div>
+                <div class="form-group" id="overtimeSelectGroup" style="display: none;">
+                    <label for="overtimeSelect">選擇加班補休項目 (剩餘時數)</label>
+                    <select id="overtimeSelect">
+                        <!-- Options injected here -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="leaveHours">時數 (滿8小時算一天)</label>
+                    <input type="number" id="leaveHours" min="0.5" max="24" step="0.5" required placeholder="例如: 4">
+                </div>
+                <div class="form-group">
+                    <label for="leaveNote">備註 (選填)</label>
+                    <input type="text" id="leaveNote" placeholder="例如: 家庭旅遊">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary cancel-btn">取消</button>
+                    <button type="submit" class="btn btn-primary" id="submitLeaveBtn">儲存紀錄</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2>年度設定 (<span id="settingYearDisplay"></span>)</h2>
+                <span class="close-btn">&times;</span>
+            </div>
+            <form id="settingsForm">
+                <div class="form-group">
+                    <label for="annualLeaveDaysSetting">特休總天數</label>
+                    <input type="number" id="annualLeaveDaysSetting" min="0" step="0.5" required>
+                </div>
+                <div class="form-group">
+                    <label>國定假日與加班補休設定</label>
+                    
+                    <div class="setting-section">
+                        <h3>國定假日設定</h3>
+                        <div class="holiday-add-group">
+                            <input type="date" id="newHolidayDate">
+                            <input type="text" id="newHolidayName" placeholder="節日名稱">
+                            <button type="button" id="addHolidayBtn" class="btn btn-secondary">新增</button>
+                        </div>
+                        <div id="holidaysList" class="settings-list"></div>
+                    </div>
+
+                    <div class="setting-section" style="margin-top: 1.5rem;">
+                        <h3>加班補休來源設定</h3>
+                        <div class="holiday-add-group">
+                            <input type="date" id="newOvertimeDate">
+                            <input type="number" id="newOvertimeHours" placeholder="時數" min="0.5" step="0.5" style="width: 80px;">
+                            <input type="text" id="newOvertimeNote" placeholder="加班事由">
+                            <button type="button" id="addOvertimeBtn" class="btn btn-secondary">新增</button>
+                        </div>
+                        <div id="overtimesSettingsList" class="settings-list"></div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary cancel-btn">取消</button>
+                    <button type="submit" class="btn btn-primary" id="saveSettingsBtn">儲存設定</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Report Modal -->
+    <div id="reportModal" class="modal">
+        <div class="modal-content glass-card" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2>年度休假報表 (<span id="reportYearDisplay"></span>)</h2>
+                <span class="close-btn">&times;</span>
+            </div>
+            <div class="report-body" style="padding: 1.5rem;">
+                <!-- Week stats cards -->
+                <div class="dashboard" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 2rem;">
+                    <div class="card summary-card glass-card" style="padding: 1rem; flex-direction: column; align-items: flex-start; gap: 0.5rem;">
+                        <h3 style="font-size: 0.8rem;">現在日期</h3>
+                        <p class="value" id="reportToday" style="font-size: 1.2rem;"></p>
+                    </div>
+                    <div class="card summary-card glass-card" style="padding: 1rem; flex-direction: column; align-items: flex-start; gap: 0.5rem;">
+                        <h3 style="font-size: 0.8rem;">年份第幾週</h3>
+                        <p class="value" id="reportCurrentWeek" style="font-size: 1.2rem;"></p>
+                    </div>
+                    <div class="card summary-card glass-card" style="padding: 1rem; flex-direction: column; align-items: flex-start; gap: 0.5rem;">
+                        <h3 style="font-size: 0.8rem;">今年共有幾週</h3>
+                        <p class="value" id="reportTotalWeeks" style="font-size: 1.2rem;"></p>
+                    </div>
+                    <div class="card summary-card glass-card" style="padding: 1rem; flex-direction: column; align-items: flex-start; gap: 0.5rem;">
+                        <h3 style="font-size: 0.8rem;">剩餘週數</h3>
+                        <p class="value" id="reportRemainingWeeks" style="font-size: 1.2rem;"></p>
+                    </div>
+                </div>
+
+                <!-- Leave report table -->
+                <div class="table-container glass-card" style="background: rgba(0,0,0,0.2);">
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>假別項目</th>
+                                <th>可用休假 (天)</th>
+                                <th>已用休假</th>
+                                <th>剩餘</th>
+                                <th>小時統計<br><small><span style="color: var(--danger-color)">已用</span> / <span style="color: var(--success-color)">可用</span></small></th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportTableBody">
+                            <!-- Injected by JS -->
+                        </tbody>
+                        <tfoot id="reportTableFoot">
+                            <!-- Injected by JS -->
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p>資料處理中...</p>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">訊息</div>
+
+    <script src="app.js"></script>
+</body>
+</html>
