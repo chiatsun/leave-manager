@@ -42,6 +42,15 @@ const otherStatsList = document.getElementById('otherStatsList');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const toast = document.getElementById('toast');
 
+const loginOverlay = document.getElementById('loginOverlay');
+const loginForm = document.getElementById('loginForm');
+const loginPasswordInput = document.getElementById('loginPassword');
+const loginError = document.getElementById('loginError');
+
+const enablePasswordToggle = document.getElementById('enablePasswordToggle');
+const passwordSettingGroup = document.getElementById('passwordSettingGroup');
+const systemPasswordSetting = document.getElementById('systemPasswordSetting');
+
 const holidaysList = document.getElementById('holidaysList');
 const addHolidayBtn = document.getElementById('addHolidayBtn');
 let tempHolidays = [];
@@ -52,6 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateYearDisplay();
     loadData();
     setupEventListeners();
+    setupLoginLogic();
 });
 
 function updateYearDisplay() {
@@ -77,12 +87,25 @@ function setupEventListeners() {
 
     settingsBtn.addEventListener('click', () => {
         document.getElementById('annualLeaveDaysSetting').value = currentData.annualLeaveDays;
+        
+        if (enablePasswordToggle) {
+            enablePasswordToggle.checked = currentData.passwordEnabled || false;
+            passwordSettingGroup.style.display = enablePasswordToggle.checked ? 'block' : 'none';
+        }
+        if (systemPasswordSetting) systemPasswordSetting.value = currentData.password || '';
+        
         tempHolidays = [...currentData.holidays];
         tempOvertimes = [...(currentData.overtimes || [])];
         renderHolidaysList();
         renderOvertimesSettingsList();
         openModal(settingsModal);
     });
+
+    if (enablePasswordToggle) {
+        enablePasswordToggle.addEventListener('change', () => {
+            passwordSettingGroup.style.display = enablePasswordToggle.checked ? 'block' : 'none';
+        });
+    }
 
     reportBtn.addEventListener('click', () => {
         updateReport();
@@ -218,7 +241,9 @@ function setupEventListeners() {
             year: currentYear,
             annualLeaveDays: Number(document.getElementById('annualLeaveDaysSetting').value),
             holidays: tempHolidays,
-            overtimes: tempOvertimes
+            overtimes: tempOvertimes,
+            passwordEnabled: enablePasswordToggle.checked,
+            password: systemPasswordSetting.value.trim()
         };
         try {
             await sendRequest(data);
@@ -447,10 +472,41 @@ async function loadData() {
     try {
         const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getDashboardData', year: currentYear }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
         const result = await response.json();
-        if (result.status === 'success') { currentData = result.data; updateDashboard(); }
+        if (result.status === 'success') { 
+            currentData = result.data; 
+            checkAuthentication();
+            updateDashboard(); 
+        }
         else { showToast('載入失敗: ' + result.message, 'error'); }
     } catch (error) { showToast('網路錯誤', 'error'); }
     finally { loadingOverlay.style.display = 'none'; }
+}
+
+function setupLoginLogic() {
+    loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const inputPwd = String(loginPasswordInput.value).trim();
+        const targetPwd = String(currentData.password).trim();
+        
+        if (inputPwd === targetPwd) {
+            sessionStorage.setItem('leave_manager_verified', 'true');
+            loginOverlay.classList.add('hidden');
+            showToast('登入成功');
+        } else {
+            loginError.style.display = 'block';
+            loginPasswordInput.value = '';
+            loginPasswordInput.focus();
+        }
+    });
+}
+
+function checkAuthentication() {
+    const isVerified = sessionStorage.getItem('leave_manager_verified') === 'true';
+    if (currentData.passwordEnabled && currentData.password && !isVerified) {
+        loginOverlay.classList.remove('hidden');
+    } else {
+        loginOverlay.classList.add('hidden');
+    }
 }
 
 async function sendRequest(data) {
@@ -526,7 +582,7 @@ function updateReport() {
             <tr>
                 <td style="text-align: left; padding-left: 2rem;">${label}</td>
                 <td>${data.quota.toFixed(1)}</td>
-                <td>休${usedDays}天+${usedHours}時</td>
+                <td>${usedDays}天+${usedHours}時</td>
                 <td style="color: ${remTotalHours < 0 ? 'var(--danger-color)' : 'var(--success-color)'}; font-weight: bold;">
                     ${remDays}天+${remHours}時
                 </td>
@@ -547,18 +603,22 @@ function updateReport() {
 
     document.getElementById('reportTableBody').innerHTML = html;
 
-    // 總計
-    const totalQuota = Object.values(stats).reduce((s, i) => s + i.quota, 0);
-    const totalUsed = Object.values(stats).reduce((s, i) => s + i.used, 0);
+    // 總計 (不含事假、病假)
+    const filteredStats = Object.entries(stats)
+        .filter(([type]) => type !== '事假' && type !== '病假')
+        .map(([_, data]) => data);
+
+    const totalQuota = filteredStats.reduce((s, i) => s + i.quota, 0);
+    const totalUsed = filteredStats.reduce((s, i) => s + i.used, 0);
     const totalRemHours = (totalQuota * 8) - totalUsed;
     
     document.getElementById('reportTableFoot').innerHTML = `
         <tr style="background: rgba(59, 130, 246, 0.1); font-weight: bold;">
             <td style="text-align: left; padding-left: 2rem;">總計 (總可休假)</td>
             <td>${totalQuota.toFixed(1)}</td>
-            <td>總用 ${Math.floor(totalUsed/8)}天+${totalUsed%8}時</td>
-            <td>總剩 ${Math.floor(totalRemHours/8)}天+${totalRemHours%8}時</td>
-            <td></td>
+            <td>${Math.floor(totalUsed/8)}天+${totalUsed%8}時</td>
+            <td>${Math.floor(totalRemHours/8)}天+${totalRemHours%8}時</td>
+            <td style="font-size: 0.8rem; color: var(--text-secondary); font-weight: normal;">(事/病假未納入計算)</td>
         </tr>
     `;
 }
