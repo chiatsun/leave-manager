@@ -54,7 +54,7 @@ function saveAppConfig(password, enabled) {
     getAppConfig();
     sheet = ss.getSheetByName("AppConfig");
   }
-  if (password !== undefined) sheet.getRange("B2").setValue(password);
+  if (password !== undefined) sheet.getRange("B2").setNumberFormat("@").setValue(password);
   if (enabled !== undefined) sheet.getRange("B3").setValue(enabled);
 }
 
